@@ -8,6 +8,7 @@ import {
   KeyRound,
   Lock,
   LogOut,
+  Menu,
   ShieldCheck,
   Trash2,
   Upload,
@@ -86,6 +87,20 @@ function formatBytes(bytes) {
 
 function formatDate(value) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function truncateFilename(name, maxLength = 32) {
+  if (!name || name.length <= maxLength) return name;
+  const dotIndex = name.lastIndexOf(".");
+  if (dotIndex > 0) {
+    const ext = name.slice(dotIndex);
+    const baseName = name.slice(0, dotIndex);
+    const availableLength = maxLength - ext.length - 3; // 3 for "..."
+    if (availableLength > 4) {
+      return `${baseName.slice(0, availableLength)}...${ext}`;
+    }
+  }
+  return `${name.slice(0, maxLength - 3)}...`;
 }
 
 function StatusPill({ children, tone = "neutral" }) {
@@ -204,6 +219,7 @@ function CodeWell({ as: Component = "div", children, className = "", title }) {
 }
 
 function Shell({ user, onLogout, children, route, setRoute }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const nav = [
     ["dashboard", "Dashboard"],
     ["upload", "Upload"],
@@ -216,7 +232,10 @@ function Shell({ user, onLogout, children, route, setRoute }) {
       <DitherBackdrop />
       <header className="app-header sticky top-0 z-20 border-b border-hairline backdrop-blur">
         <div className="mx-auto flex h-[60px] max-w-7xl items-center justify-between px-6 lg:px-8">
-          <button className="font-display text-2xl font-black" onClick={() => setRoute("dashboard")}>VaultLink</button>
+          <div className="flex items-center gap-3">
+            <button className="mobile-menu-toggle" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Toggle menu"><Menu size={20} /></button>
+            <button className="font-display text-2xl font-black" onClick={() => { setRoute("dashboard"); setMobileOpen(false); }}>VaultLink</button>
+          </div>
           <nav className="hidden items-center gap-2 md:flex">
             {nav.map(([key, label]) => (
               <button key={key} className={`nav-pill ${route === key ? "bg-card" : ""}`} onClick={() => setRoute(key)}>{label}</button>
@@ -227,6 +246,13 @@ function Shell({ user, onLogout, children, route, setRoute }) {
             <button className="icon-button" title="Logout" onClick={onLogout}><LogOut size={18} /></button>
           </div>
         </div>
+        {mobileOpen && (
+          <nav className="mobile-nav md:hidden">
+            {nav.map(([key, label]) => (
+              <button key={key} className={`nav-pill ${route === key ? "bg-card" : ""}`} onClick={() => { setRoute(key); setMobileOpen(false); }}>{label}</button>
+            ))}
+          </nav>
+        )}
       </header>
       <main className="relative z-[1] mx-auto max-w-7xl px-6 py-10 lg:px-8">{children}</main>
     </div>
@@ -268,7 +294,7 @@ function Dashboard({ files, refresh, setRoute }) {
           return (
             <div className="table-row" key={file.id}>
               <div>
-                <p className="font-semibold">{file.originalFilename}</p>
+                <p className="font-semibold filename-truncate" title={file.originalFilename}>{truncateFilename(file.originalFilename)}</p>
                 <p className="text-sm text-charcoal">{formatBytes(file.size)} · expires {formatDate(file.share.expiresAt)}</p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -335,7 +361,7 @@ function UploadPage({ refresh, setRoute }) {
         </div>
         <label className="upload-drop">
           <FileKey2 size={32} />
-          <span>{file ? file.name : "Choose a file"}</span>
+          <span className="filename-truncate" title={file ? file.name : undefined}>{file ? truncateFilename(file.name, 40) : "Choose a file"}</span>
           <input type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} required />
         </label>
         <div className="grid gap-4 md:grid-cols-2">
@@ -468,7 +494,7 @@ function SharePage() {
       <section className="relative z-[1] mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1fr_360px]">
         <div className="panel">
           <p className="eyebrow">secure share</p>
-          <h1 className="mt-2 font-display text-5xl font-black leading-none">{meta?.fileName || "VaultLink share"}</h1>
+          <h1 className="mt-2 font-display text-5xl font-black leading-none share-filename" title={meta?.fileName}>{meta ? truncateFilename(meta.fileName, 28) : "VaultLink share"}</h1>
           {meta && (
             <div className="mt-6 space-y-4">
               <p className="text-charcoal">{formatBytes(meta.size)} · expires {formatDate(meta.expiresAt)}</p>
