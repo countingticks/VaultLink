@@ -7,6 +7,14 @@
   box-sizing: border-box;
 }
 
+html {
+  scrollbar-width: none;          /* Firefox */
+}
+
+html::-webkit-scrollbar {
+  display: none;                  /* Chrome, Safari, Edge */
+}
+
 body {
   margin: 0;
   background: #f9f7f3;
