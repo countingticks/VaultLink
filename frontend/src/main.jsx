@@ -1,7 +1,8 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  Activity,
+  Check,
+  ChevronDown,
   Clipboard,
   Download,
   FileKey2,
@@ -21,6 +22,13 @@ import "./styles.css";
 const Dither = lazy(() => import("./components/Dither"));
 
 const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
+
+const EXPIRATION_OPTIONS = [
+  { value: "10m", label: "10 minutes" },
+  { value: "1h", label: "1 hour" },
+  { value: "24h", label: "24 hours" },
+  { value: "7d", label: "7 days" },
+];
 
 function DitherBackdrop({ variant = "page" }) {
   const props = variant === "hero"
@@ -323,6 +331,75 @@ function Metric({ label, value }) {
   );
 }
 
+function ExpirationSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+  const selectedOption = EXPIRATION_OPTIONS.find((option) => option.value === value) || EXPIRATION_OPTIONS[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    function closeOnOutside(event) {
+      if (!wrapperRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    function closeOnEscape(event) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  function chooseOption(option) {
+    onChange(option.value);
+    setOpen(false);
+  }
+
+  return (
+    <div className="select-field" ref={wrapperRef}>
+      <button
+        type="button"
+        className="text-input select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span>{selectedOption.label}</span>
+        <ChevronDown className="select-chevron" size={18} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="select-menu" role="listbox" aria-label="Expiration">
+          {EXPIRATION_OPTIONS.map((option) => {
+            const selected = option.value === value;
+            return (
+              <button
+                type="button"
+                key={option.value}
+                className={`select-option ${selected ? "select-option-active" : ""}`}
+                role="option"
+                aria-selected={selected}
+                onClick={() => chooseOption(option)}
+              >
+                <span>{option.label}</span>
+                {selected && <Check size={16} aria-hidden="true" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UploadPage({ refresh, setRoute }) {
   const [file, setFile] = useState(null);
   const [expiresIn, setExpiresIn] = useState("10m");
@@ -365,7 +442,7 @@ function UploadPage({ refresh, setRoute }) {
           <input type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} required />
         </label>
         <div className="grid gap-4 md:grid-cols-2">
-          <label><span className="field-label">Expiration</span><select className="text-input" value={expiresIn} onChange={(event) => setExpiresIn(event.target.value)}><option value="10m">10 minutes</option><option value="1h">1 hour</option><option value="24h">24 hours</option><option value="7d">7 days</option></select></label>
+          <label><span className="field-label">Expiration</span><ExpirationSelect value={expiresIn} onChange={setExpiresIn} /></label>
           <label><span className="field-label">Download password</span><input className="text-input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Optional" /></label>
         </div>
         <label><span className="field-label">Note</span><textarea className="text-area" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional context for the recipient" /></label>
